@@ -7,10 +7,10 @@ import session from 'express-session';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.use(cors({
   origin: [
+    'https://spotifydevapi.arwindpianist.store', // production frontend
     'http://127.0.0.1:8081',
     'http://localhost:8081',
     'http://127.0.0.1:3000',
@@ -265,6 +265,5 @@ app.post('/auth/reset', (req: Request, res: Response) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Spotify API Explorer backend running on http://localhost:${PORT}`);
-});
+// Export the app for Vercel serverless
+export default app;
