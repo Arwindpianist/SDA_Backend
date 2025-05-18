@@ -43,6 +43,13 @@ app.use(cookieSession({
   httpOnly: true,
 }));
 
+// Log environment variables for debugging (do not log secrets in production)
+console.log('SESSION_SECRET:', process.env.SESSION_SECRET ? '[set]' : '[not set]');
+console.log('SPOTIFY_CLIENT_ID:', process.env.SPOTIFY_CLIENT_ID ? '[set]' : '[not set]');
+console.log('SPOTIFY_CLIENT_SECRET:', process.env.SPOTIFY_CLIENT_SECRET ? '[set]' : '[not set]');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+
 // Refresh access token if expired or about to expire
 async function refreshAccessToken(req: Request): Promise<void> {
   const session = req.session as Record<string, any>;
