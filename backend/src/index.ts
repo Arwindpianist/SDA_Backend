@@ -9,15 +9,26 @@ dotenv.config();
 const app = express();
 
 app.use(cors({
-  origin: [
-    'https://spotifydevapi.arwindpianist.store',
-    'http://127.0.0.1:8081',
-    'http://localhost:8081',
-    'http://127.0.0.1:3000',
-    'http://localhost:3000',
-    process.env.FRONTEND_URL || ''
-  ].filter((url): url is string => Boolean(url)),
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://spotifydevapi.arwindpianist.store',
+      'http://127.0.0.1:8081',
+      'http://localhost:8081',
+      'http://127.0.0.1:3000',
+      'http://localhost:3000',
+      process.env.FRONTEND_URL || ''
+    ];
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 
