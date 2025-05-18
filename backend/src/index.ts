@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import session from 'express-session';
+import cookieSession from 'cookie-session';
 
 dotenv.config();
 
@@ -21,33 +21,22 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// TypeScript session extension
-declare module 'express-session' {
-  interface SessionData {
-    accessToken?: string;
-    refreshToken?: string;
-    tokenExpiresAt?: number;
-  }
-}
-
-// Improved session config for cross-domain cookies
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'supersecretkey',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-    httpOnly: true,
-    maxAge: 60 * 60 * 1000,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' for cross-site in prod
-    domain: process.env.NODE_ENV === 'production' ? '.arwindpianist.store' : undefined, // share cookie across subdomains in prod
-  },
+// Use cookie-session for stateless session storage
+app.use(cookieSession({
+  name: 'session',
+  keys: [process.env.SESSION_SECRET || 'supersecretkey'],
+  maxAge: 60 * 60 * 1000, // 1 hour
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  domain: process.env.NODE_ENV === 'production' ? '.arwindpianist.store' : undefined,
+  httpOnly: true,
 }));
 
 // Refresh access token if expired or about to expire
 async function refreshAccessToken(req: Request): Promise<void> {
-  const refreshToken = req.session.refreshToken;
-  if (!refreshToken) throw new Error('No refresh token available');
+  const session = req.session as Record<string, any>;
+  if (!session || !session.refreshToken) throw new Error('No refresh token available');
+  const refreshToken = session.refreshToken;
 
   const params = new URLSearchParams({
     grant_type: 'refresh_token',
@@ -60,24 +49,23 @@ async function refreshAccessToken(req: Request): Promise<void> {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
 
-  req.session.accessToken = response.data.access_token;
+  session.accessToken = response.data.access_token;
   if (response.data.refresh_token) {
-    req.session.refreshToken = response.data.refresh_token;
+    session.refreshToken = response.data.refresh_token;
   }
-
-  // Update expiration time
-  req.session.tokenExpiresAt = Date.now() + (response.data.expires_in * 1000);
+  session.tokenExpiresAt = Date.now() + (response.data.expires_in * 1000);
 }
 
 // Middleware to ensure token is valid, refresh if expired
 function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
-  if (!req.session.accessToken) {
+  const session = req.session as Record<string, any>;
+  if (!session || !session.accessToken) {
     res.status(401).json({ error: 'Not authenticated' });
     return;
   }
 
   // Check token expiry, refresh if within 1 minute of expiry or expired
-  if (!req.session.tokenExpiresAt || Date.now() > req.session.tokenExpiresAt - 60000) {
+  if (!session.tokenExpiresAt || Date.now() > session.tokenExpiresAt - 60000) {
     refreshAccessToken(req)
       .then(() => next())
       .catch((error) => {
@@ -121,10 +109,10 @@ app.post('/auth/token', asyncHandler(async (req: Request, res: Response): Promis
       }
     );
 
-    // Save tokens and expiry time in session
-    req.session.accessToken = tokenResponse.data.access_token;
-    req.session.refreshToken = tokenResponse.data.refresh_token;
-    req.session.tokenExpiresAt = Date.now() + (tokenResponse.data.expires_in * 1000);
+    const session = req.session as Record<string, any>;
+    session.accessToken = tokenResponse.data.access_token;
+    session.refreshToken = tokenResponse.data.refresh_token;
+    session.tokenExpiresAt = Date.now() + (tokenResponse.data.expires_in * 1000);
 
     res.json({
       access_token: tokenResponse.data.access_token,
@@ -147,6 +135,9 @@ app.get('/search/artist', ensureAuthenticated, asyncHandler(async (req: Request,
   }
 
   try {
+    const session = req.session as Record<string, any>;
+    const accessToken = session.accessToken;
+    if (!accessToken) throw new Error('No access token');
     const response = await axios.get('https://api.spotify.com/v1/search', {
       params: {
         q,
@@ -154,7 +145,7 @@ app.get('/search/artist', ensureAuthenticated, asyncHandler(async (req: Request,
         limit: 10,
       },
       headers: {
-        Authorization: `Bearer ${req.session.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
       },
     });
 
@@ -188,9 +179,12 @@ app.get('/albums/:artistId', ensureAuthenticated, asyncHandler(async (req: Reque
   }
 
   try {
+    const session = req.session as Record<string, any>;
+    const accessToken = session.accessToken;
+    if (!accessToken) throw new Error('No access token');
     const response = await axios.get(`https://api.spotify.com/v1/artists/${artistId}/albums`, {
       headers: {
-        Authorization: `Bearer ${req.session.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
       },
       params: {
         include_groups: 'album,single',
@@ -227,9 +221,12 @@ app.get('/tracks/:albumId', ensureAuthenticated, asyncHandler(async (req: Reques
   }
 
   try {
+    const session = req.session as Record<string, any>;
+    const accessToken = session.accessToken;
+    if (!accessToken) throw new Error('No access token');
     const response = await axios.get(`https://api.spotify.com/v1/albums/${albumId}/tracks`, {
       headers: {
-        Authorization: `Bearer ${req.session.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
       },
       params: {
         limit: 50,
@@ -258,13 +255,9 @@ app.get('/tracks/:albumId', ensureAuthenticated, asyncHandler(async (req: Reques
 
 // Reset session (clear tokens)
 app.post('/auth/reset', (req: Request, res: Response) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error('Session destroy error:', err);
-      return res.status(500).json({ error: 'Failed to reset session' });
-    }
-    res.json({ message: 'Session reset successful' });
-  });
+  // For cookie-session, to clear the session, set req.session = null as any
+  (req.session as any) = null;
+  res.json({ message: 'Session reset successful' });
 });
 
 // Export the app for Vercel serverless
