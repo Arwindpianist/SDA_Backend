@@ -271,5 +271,19 @@ app.post('/auth/reset', (req: Request, res: Response) => {
   res.json({ message: 'Session reset successful' });
 });
 
+// Add a global error handler for CORS errors and other uncaught errors
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err && err.message === 'Not allowed by CORS') {
+    res.status(403).json({ error: 'CORS error: Origin not allowed' });
+  } else {
+    // For CORS preflight OPTIONS requests, always respond with 204 if error
+    if (req.method === 'OPTIONS') {
+      res.status(204).send();
+    } else {
+      res.status(500).json({ error: err?.message || 'Internal server error' });
+    }
+  }
+});
+
 // Export the app for Vercel serverless
 export default app;
