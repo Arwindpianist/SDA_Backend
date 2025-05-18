@@ -274,6 +274,11 @@ app.post('/auth/reset', (req: Request, res: Response) => {
   res.json({ message: 'Session reset successful' });
 });
 
+// Health check/root route
+app.get('/', (req: Request, res: Response) => {
+  res.json({ status: 'ok', message: 'Spotify API backend is running.' });
+});
+
 // Add explicit handler for OPTIONS requests to always return CORS headers
 app.options('*', cors({
   origin: function (origin, callback) {
