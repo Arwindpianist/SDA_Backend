@@ -10,7 +10,7 @@ const app = express();
 
 app.use(cors({
   origin: [
-    'https://spotifydevapi.arwindpianist.store', // production frontend
+    'https://spotifydevapi.arwindpianist.store',
     'http://127.0.0.1:8081',
     'http://localhost:8081',
     'http://127.0.0.1:3000',
@@ -21,21 +21,22 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Extend session typings
+// TypeScript session extension
 declare module 'express-session' {
   interface SessionData {
     accessToken?: string;
     refreshToken?: string;
-    tokenExpiresAt?: number; // timestamp in ms
+    tokenExpiresAt?: number;
   }
 }
 
+// Improved session config for cross-domain cookies
 app.use(session({
   secret: process.env.SESSION_SECRET || 'supersecretkey',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // true in production (HTTPS)
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
     httpOnly: true,
     maxAge: 60 * 60 * 1000,
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' for cross-site in prod
