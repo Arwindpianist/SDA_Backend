@@ -12,10 +12,6 @@ app.use(cors({
   origin: function (origin, callback) {
     const allowedOrigins = [
       'https://spotifydevapi.arwindpianist.store',
-      'http://127.0.0.1:8081',
-      'http://localhost:8081',
-      'http://127.0.0.1:3000',
-      'http://localhost:3000',
       process.env.FRONTEND_URL || ''
     ];
     // Allow requests with no origin (like mobile apps, curl, etc.)
