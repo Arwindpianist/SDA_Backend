@@ -122,6 +122,7 @@ app.post('/auth/token', asyncHandler(async (req: Request, res: Response): Promis
       token_type: tokenResponse.data.token_type,
     });
   } catch (error) {
+    console.error('Token exchange failed:', error);
     console.error('Token exchange failed:', (error as any).response?.data || (error as Error).message);
     res.status(500).json({ error: 'Failed to exchange code for token' });
   }
