@@ -278,6 +278,29 @@ app.post('/auth/reset', (req: Request, res: Response) => {
   res.json({ message: 'Session reset successful' });
 });
 
+// Add explicit handler for OPTIONS requests to always return CORS headers
+app.options('*', cors({
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://spotifydevapi.arwindpianist.store',
+      'http://127.0.0.1:8081',
+      'http://localhost:8081',
+      'http://127.0.0.1:3000',
+      'http://localhost:3000',
+      process.env.FRONTEND_URL || ''
+    ];
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 // Add a global error handler for CORS errors and other uncaught errors
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (err && err.message === 'Not allowed by CORS') {
