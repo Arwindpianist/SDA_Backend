@@ -35,10 +35,11 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // true in prod with HTTPS
+    secure: process.env.NODE_ENV === 'production', // true in production (HTTPS)
     httpOnly: true,
-    maxAge: 60 * 60 * 1000, // 1 hour
-    sameSite: 'lax', // protection against CSRF
+    maxAge: 60 * 60 * 1000,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' for cross-site in prod
+    domain: process.env.NODE_ENV === 'production' ? '.arwindpianist.store' : undefined, // share cookie across subdomains in prod
   },
 }));
 
